@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: fixtrack-mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: fixtrack_user
+      MONGO_INITDB_ROOT_PASSWORD: fixtrack_password
+      MONGO_INITDB_DATABASE: fixtrack_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fixtrack-backend
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=development
+      - PORT=8000
+      - MONGODB_URI=mongodb://fixtrack_user:fixtrack_password@mongodb:27017/fixtrack_db?authSource=admin
+      - JWT_SECRET=change_this_to_a_secure_32_char_secret_key_in_production
+      - FRONTEND_ORIGINS=http://localhost:5173,http://localhost:3000
+      - UPLOAD_DIR=./uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongodb
+    volumes:
+      - ./backend:/app
+      - backend_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fixtrack-frontend
+    restart: unless-stopped
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000/api/v1
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  mongo_data:
+  backend_uploads:
